@@ -1,0 +1,122 @@
+---
+title: "analysis"
+format: html
+editor: visual
+---
+
+```{r}
+library(httr)
+library(jsonlite)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+
+source("api.R")  
+```
+
+## 1. Contingency tables
+
+```{r}
+library(dplyr)
+
+breeds_df <- get_all_breeds() %>%
+  mutate(has_sub = lengths(sub_breeds) > 0)
+
+# simple 2×2 table
+table(breeds_df$has_sub)
+# or as tibble
+breeds_df %>%
+  count(has_sub) %>%
+  mutate( pct = n / sum(n) )
+```
+
+### 2. Numerical summaries
+
+```{r}
+breeds_df <- breeds_df %>%
+  mutate(sub_count = lengths(sub_breeds))
+
+# overall summary
+summary(breeds_df$sub_count)
+
+# by first letter of breed
+breeds_df %>%
+  mutate(first_letter = substr(breed,1,1)) %>%
+  group_by(first_letter) %>%
+  summarise(
+    mean_sub = mean(sub_count),
+    median_sub = median(sub_count),
+    max_sub = max(sub_count),
+    .groups="drop"
+  )
+```
+
+### 3. Four plots
+
+```{r}
+library(ggplot2)
+```
+
+### A. Bar chart of breeds **with** sub‐breeds, showing top 15 by count
+
+```{r}
+breeds_df %>%
+  filter(sub_count > 0) %>%
+  arrange(desc(sub_count)) %>%
+  slice_head(n = 15) %>%
+  ggplot(aes(x = reorder(breed, sub_count), y = sub_count, fill = sub_count)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Top 15 Breeds by Number of Sub‐Breeds",
+    x = "Breed", y = "Number of Sub‐Breeds",
+    fill = "Count"
+  )
+```
+
+### B. Histogram of **all** sub‐breed counts
+
+```{r}
+ggplot(breeds_df, aes(x = sub_count)) +
+  geom_histogram(binwidth = 1, color = "grey30") +
+  labs(
+    title = "Distribution of Sub‐Breed Counts per Breed",
+    x = "Number of Sub‐Breeds", y = "Number of Breeds"
+  )
+```
+
+### C. Boxplot of sub‐breed counts by first letter
+
+```{r}
+breeds_df %>%
+  mutate(first_letter = substr(breed,1,1)) %>%
+  ggplot(aes(x = first_letter, y = sub_count)) +
+  geom_boxplot(aes(fill = first_letter), show.legend = FALSE) +
+  labs(
+    title = "Sub‐Breed Count by First Letter of Breed",
+    x = "First Letter", y = "Sub‐Breed Count"
+  )
+
+```
+
+### D. **Heatmap** of count of breeds by (first letter) × (has_sub vs none)
+
+```{r}
+heat_df <- breeds_df %>%
+  mutate(
+    first_letter = substr(breed,1,1),
+    has_sub      = ifelse(sub_count>0, "Has sub-breeds","No sub-breeds")
+  ) %>%
+  count(first_letter, has_sub)
+
+ggplot(heat_df, aes(x = first_letter, y = has_sub, fill = n)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = n)) +
+  scale_fill_gradient(low = "aliceblue", high = "steelblue") +
+  labs(
+    title = "Breeds by First Letter and Sub-Breed Presence",
+    x = "First Letter", y = NULL,
+    fill = "Number of Breeds"
+  )
+
+```

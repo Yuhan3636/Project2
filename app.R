@@ -22,7 +22,7 @@ ui <- navbarPage(
                tags$li(strong("Data Download:"), "Pick breed/sub-breed, fetch & view the raw data, subset and download as CSV."),
                tags$li(strong("Data Exploration:"), "Choose summary statistics and plot types (histogram, bar, boxplot, heatmap).")
              ),
-             img(src="https://dog.ceo/assets/img/logo.svg", height="100px")  # Dog CEO logo!
+             img(src = "https://dog.ceo/assets/img/logo.svg", height = "100px")
            )
   ),
   

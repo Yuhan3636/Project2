@@ -3,7 +3,7 @@
 library(shiny)
 library(DT)
 library(dplyr)
-source("api.R")   # or "R/dog_api.R"
+source("api.R")   
 
 # Preload breed list
 all_breeds <- get_all_breeds()$breed
@@ -15,16 +15,31 @@ ui <- navbarPage(
   tabPanel("About",
            fluidPage(
              h2("About Dog CEO Explorer"),
+             
              p("This app lets you browse random dog images by breed and sub-breed, using the free Dog CEO API."),
-             p("Data source: ", a("https://dog.ceo/dog-api/", href="https://dog.ceo/dog-api/", target="_blank")),
-             p("**Tabs:**"),
-             tags$ul(
-               tags$li(strong("Data Download:"), "Pick breed/sub-breed, fetch & view the raw data, subset and download as CSV."),
-               tags$li(strong("Data Exploration:"), "Choose summary statistics and plot types (histogram, bar, boxplot, heatmap).")
+             
+             p(
+               "Data source: ",
+               a("Dog CEO API", href = "https://dog.ceo/dog-api/", target = "_blank")
              ),
-             img(src = "https://dog.ceo/assets/img/logo.svg", height = "100px")
+             
+             h4("Tabs:"),
+             tags$ul(
+               tags$li(strong("About:"), "this page"),
+               tags$li(strong("Data Download:"), "fetch raw data, subset rows & columns, download as CSV"),
+               tags$li(strong("Data Exploration:"), "explore and plot summary statistics (histogram, bar, boxplot, heatmap)")
+             ),
+             
+             # Here’s the locally-hosted logo
+             tags$img(
+               src    = "logo.svg",
+               alt    = "Dog CEO logo",
+               height = "100px"
+             )
            )
   ),
+  
+
   
   ## ── 2) Data Download Tab ─────────────────────────────────────────────────────
   tabPanel("Data Download",

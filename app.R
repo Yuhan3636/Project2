@@ -3,6 +3,7 @@
 library(shiny)
 library(DT)
 library(dplyr)
+library(ggplot2)
 source("api.R")   
 
 # Preload breed list
@@ -14,28 +15,38 @@ ui <- navbarPage(
   ## ── 1) About Tab ──────────────────────────────────────────────────────────────
   tabPanel("About",
            fluidPage(
-             h2("About Dog CEO Explorer"),
              
-             p("This app lets you browse random dog images by breed and sub-breed, using the free Dog CEO API."),
-             
-             p(
-               "Data source: ",
-               a("Dog CEO API", href = "https://dog.ceo/dog-api/", target = "_blank")
+             # a little header row with logo + title/description
+             fluidRow(
+               column(3,
+                      tags$img(
+                        src    = "logo.png",      # make sure www/logo.png exists
+                        alt    = "Dog CEO logo",
+                        height = "120px",
+                        style  = "display:block; margin:auto;"
+                      )
+               ),
+               column(9,
+                      h2("Dog CEO Explorer"),
+                      p(
+                        "Dog CEO Explorer is an R/Shiny application that lets you browse",
+                        "random dog images by breed and sub-breed.  Under the hood it uses",
+                        a("Dog CEO’s Dog API", href = "https://dog.ceo/dog-api/", target = "_blank"),
+                        "– the world’s largest open-source collection of dog photos."
+                      )
+               )
              ),
              
-             h4("Tabs:"),
+             hr(),
+             
+             # tell the user about each tab
+             h3("App Structure"),
              tags$ul(
-               tags$li(strong("About:"), "this page"),
-               tags$li(strong("Data Download:"), "fetch raw data, subset rows & columns, download as CSV"),
-               tags$li(strong("Data Exploration:"), "explore and plot summary statistics (histogram, bar, boxplot, heatmap)")
-             ),
-             
-             # Here’s the locally-hosted logo
-             tags$img(
-               src    = "logo.svg",
-               alt    = "Dog CEO logo",
-               height = "100px"
+               tags$li(strong("About:"), "You’re here—learn what the app does, where the data comes from, and how to navigate."),
+               tags$li(strong("Data Download:"), "Select a breed (and sub-breed if available), fetch raw image URLs or images, subset rows/columns, and download a CSV of your selection."),
+               tags$li(strong("Data Exploration:"), "View summary tables and four kinds of plots (histogram, bar–ranked by sub‐breed count, boxplot, and heatmap) with dynamic faceting and bin controls.")
              )
+             
            )
   ),
   
@@ -144,43 +155,45 @@ server <- function(input, output, session) {
   })
   
   output$explore_plot <- renderPlot({
-    df <- summary_df()
+    df <- summary_df()  
     
-    # Apply faceting if requested
-    facet_expr <- switch(input$facet_var,
-                         "first_letter" = facet_wrap(~first_letter),
-                         "has_sub"      = facet_wrap(~has_sub),
-                         NULL
-    )
-    
+    # Build the base plot
     p <- switch(input$plot_type,
                 "Histogram" = ggplot(df, aes(x = sub_count)) +
                   geom_histogram(bins = input$bins, color = "grey30") +
                   labs(title = "Histogram of Sub‐Breed Counts",
                        x = "Number of sub‐breeds", y = "Number of breeds"),
                 "Bar"       = df %>%
-                  count(breed) %>%
-                  top_n(15, n) %>%
-                  ggplot(aes(reorder(breed, n), n)) +
+                  arrange(desc(sub_count)) %>%
+                  slice_head(n = 15) %>%
+                  ggplot(aes(x = reorder(breed, sub_count), y = sub_count)) +
                   geom_col(fill = "steelblue") + coord_flip() +
-                  labs(title = "Top 15 Breeds by Count", x = "", y = "Count"),
-                "Boxplot"   = ggplot(df, aes(y = sub_count, x = "")) +
+                  labs(title = "Top 15 Breeds by Number of Sub‐Breeds",
+                       x = "Breed", y = "Number of Sub‐Breeds"),
+                "Boxplot"   = ggplot(df, aes(x = "", y = sub_count)) +
                   geom_boxplot(fill = "lightgreen") +
-                  labs(title = "Boxplot of Sub‐Breed Counts", y = "Count", x = ""),
+                  labs(title = "Boxplot of Sub‐Breed Counts",
+                       x = NULL, y = "Sub‐Breed Count"),
                 "Heatmap"   = {
-                  hm <- df %>%
-                    count(first_letter, has_sub)
+                  hm <- df %>% count(first_letter, has_sub)
                   ggplot(hm, aes(x = first_letter, y = has_sub, fill = n)) +
-                    geom_tile() + geom_text(aes(label = n)) +
+                    geom_tile(color = "white") +
+                    geom_text(aes(label = n)) +
                     labs(title = "Breeds by Letter & Sub‐Breed Presence",
-                         x = "First Letter", y = "")
+                         x = "First Letter", y = NULL)
                 }
     )
     
-    # Add facet if needed
-    if (!is.null(facet_expr)) p <- p + facet_expr
-    p
+    # Only facet if the user chose something other than "None"
+    if (input$facet_var != "None") {
+      fac_formula <- as.formula(paste0("~", input$facet_var))
+      p <- p + facet_wrap(fac_formula)
+    }
+    
+    # Print the ggplot object
+    print(p)
   })
+  
 }
 
 shinyApp(ui, server)
